@@ -80,7 +80,7 @@ def option_2(shopper, basketid):
     cursor.execute(product, (category_id,))
     all_rows_products = cursor.fetchall()
     product_id = display_options(all_rows_products, "Products", "product")
-    seller = "SELECT ps.seller_id, seller_name || price\
+    seller = "SELECT ps.seller_id, seller_name || PRINTF(' £%.2f',price)\
               FROM product_sellers ps\
                    INNER JOIN sellers ON ps.seller_id = sellers.seller_id\
               WHERE product_id = ?\
@@ -88,7 +88,55 @@ def option_2(shopper, basketid):
     cursor.execute(seller, (product_id,))
     all_rows_seller = cursor.fetchall()
     seller_id = display_options(all_rows_seller, "Sellers who sell this product", "seller")
-    print(category_id, product_id, seller_id)
+    quantity = 0
+    while quantity <= 0:
+        quantity = int(input("Enter the quantity of the selected product you want to buy: "))
+    price_query = "SELECT price\
+                   FROM product_sellers ps\
+                        INNER JOIN sellers ON ps.seller_id = sellers.seller_id\
+                   WHERE product_id = ? AND ps.seller_id = ?"
+    cursor.execute(price_query, (product_id, seller_id,))
+    price = cursor.fetchone()[0]
+    if basketid is None:
+        next_basket_id_query = "SELECT seq\
+                                FROM sqlite_sequence\
+                                WHERE name = 'shopper_baskets'"
+        cursor.execute(next_basket_id_query)
+        basketid = cursor.fetchone()[0] + 1
+        create_basket_query = "INSERT INTO shopper_baskets \
+                                    VALUES (?, ?, datetime('now'))"
+        cursor.execute(create_basket_query, (basketid, shopper,))
+        add_item_query = "INSERT INTO basket_contents \
+                               VALUES (?, ?, ?, ?, ?)"
+        cursor.execute(add_item_query, (basketid, product_id, seller_id, quantity, price,))
+        db.commit()
+    else:
+        add_item_query = f"INSERT INTO basket_contents \
+                                       VALUES ({basketid}, {product_id}, {seller_id}, {quantity}, {price})"
+        cursor.execute(add_item_query, (basketid, product_id, seller_id, quantity, price,))
+        db.commit()
+    print("\n\nItem added to the basket")
+    return
+
+
+def option_3(shopper, basketid):
+    if basketid is None:
+        print("Your basket is empty")
+    else:
+        display_basket_query = "SELECT product_description, seller_name, quantity, price, (quantity*price)\
+                                FROM basket_contents bc\
+                                     INNER JOIN shopper_baskets sb ON sb.basket_id = bc.basket_id\
+                                     INNER JOIN products p ON bc.product_id = p.product_id\
+                                     INNER JOIN sellers s ON bc.seller_id = s.seller_id \
+                                where shopper_id = ? "
+        cursor.execute(display_basket_query, (shopper,))
+        all_rows = cursor.fetchall()
+        print("\nBasket Contents\n"
+              "-------------------\n")
+        print("{0:7}\t{1:45}\t{2:18}\t{3:8}\t{4:2}".format("Basket Item", "Product Description", "Seller Name",
+                                                           "Price", "Total"))
+        #for row in all_rows:
+
     return
 
 
@@ -111,9 +159,10 @@ def display_options(all_options, title, type):
 
 def run():
     shopper = int(input("Please enter your shopper ID: "))
-    sql_query = "SELECT * \
-                FROM shoppers"
-    cursor.execute(sql_query)
+    sql_query = "SELECT *\
+                 FROM shoppers \
+                 WHERE shopper_id = ?"
+    cursor.execute(sql_query, (shopper,))
     shop_row = cursor.fetchone()
     basketid = None
     if shopper == shop_row[0]:
@@ -127,6 +176,8 @@ def run():
                 option_1(shopper)
             elif option == 2:
                 option_2(shopper, basketid)
+            elif option == 3:
+                option_3(shopper, basketid)
             elif option == 7:
                 db.close()
                 break
