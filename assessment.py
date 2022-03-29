@@ -35,6 +35,16 @@ def check_basket(shopper):
     return basketid
 
 
+def check_basket_contents(basketid):
+    contents = "SELECT* FROM basket_contents WHERE basket_id = ?"
+    cursor.execute(contents, (basketid,))
+    check_content = cursor.fetchall()
+    if len(check_content) == 0:
+        return True
+    else:
+        return False
+
+
 def option_1(shopper):
     order_history = f"SELECT so.order_id, order_date,product_description, seller_name,\
                              price, quantity, ordered_product_status\
@@ -50,7 +60,8 @@ def option_1(shopper):
 
     if all_rows:
         print("{0:7}\t{1:8}\t{2:45}\t{3:18}\t{4:8}\t{5:2}\t{6:8}".format("OrderID", "Order Date",
-              "Product Description", "Seller", "Price", "Qty", "Status"))
+                                                                         "Product Description", "Seller", "Price",
+                                                                         "Qty", "Status"))
         for order in all_rows:
             orderid = order[0]
             orderdate = order[1]
@@ -60,7 +71,7 @@ def option_1(shopper):
             qty = order[5]
             status = order[6]
             print("{0:7}\t{1:8}\t{2:45}\t{3:18}\t£{4:8.2f}\t{5:3}\t{6:8}".format(orderid, orderdate,
-                  proddes, seller, price, qty, status))
+                                                                                 proddes, seller, price, qty, status))
     else:
         print("No orders placed by this customer")
     return
@@ -91,6 +102,8 @@ def option_2(shopper, basketid):
     quantity = 0
     while quantity <= 0:
         quantity = int(input("Enter the quantity of the selected product you want to buy: "))
+        if quantity <= 0:
+            print("The quantity must be greater than zero")
     price_query = "SELECT price\
                    FROM product_sellers ps\
                         INNER JOIN sellers ON ps.seller_id = sellers.seller_id\
@@ -111,8 +124,8 @@ def option_2(shopper, basketid):
         cursor.execute(add_item_query, (basketid, product_id, seller_id, quantity, price,))
         db.commit()
     else:
-        add_item_query = f"INSERT INTO basket_contents \
-                                       VALUES ({basketid}, {product_id}, {seller_id}, {quantity}, {price})"
+        add_item_query = "INSERT INTO basket_contents \
+                                       VALUES (?, ?, ?, ?, ?)"
         cursor.execute(add_item_query, (basketid, product_id, seller_id, quantity, price,))
         db.commit()
     print("\n\nItem added to the basket")
@@ -120,23 +133,95 @@ def option_2(shopper, basketid):
 
 
 def option_3(shopper, basketid):
-    if basketid is None:
+    all_rows = ()
+    if check_basket_contents(basketid) is True:
         print("Your basket is empty")
     else:
-        display_basket_query = "SELECT product_description, seller_name, quantity, price, (quantity*price)\
-                                FROM basket_contents bc\
-                                     INNER JOIN shopper_baskets sb ON sb.basket_id = bc.basket_id\
-                                     INNER JOIN products p ON bc.product_id = p.product_id\
-                                     INNER JOIN sellers s ON bc.seller_id = s.seller_id \
-                                where shopper_id = ? "
+        display_basket_query = "SELECT product_description, seller_name, quantity, PRINTF('£ %.2f',price),\
+                                  PRINTF('%.2f',(quantity*price)), p.product_id\
+                                      FROM basket_contents bc\
+                                           INNER JOIN shopper_baskets sb ON sb.basket_id = bc.basket_id\
+                                           INNER JOIN products p ON bc.product_id = p.product_id\
+                                           INNER JOIN sellers s ON bc.seller_id = s.seller_id \
+                                      where shopper_id = ? "
         cursor.execute(display_basket_query, (shopper,))
         all_rows = cursor.fetchall()
         print("\nBasket Contents\n"
-              "-------------------\n")
-        print("{0:7}\t{1:45}\t{2:18}\t{3:8}\t{4:2}".format("Basket Item", "Product Description", "Seller Name",
-                                                           "Price", "Total"))
-        #for row in all_rows:
+              "----------------\n")
+        print("{0:7}\t{1:45}\t{2:26}\t{3:5}\t{4:10}\t{5:2}".format("Basket Item", "Product Description", "Seller Name",
+                                                                   "Qty", "Price", "Total"))
+        basket_item = 0
+        total_basket = 0.00
+        for row in all_rows:
+            basket_item += 1
+            product_description = row[0]
+            seller_name = row[1]
+            quantity = row[2]
+            price = row[3]
+            total = row[4]
+            total_basket += float(total)
+            print("{0:11}\t{1:45}\t{2:24}\t{3:4}\t{4:10}\t{5:1} {6:1}".format(basket_item, product_description,
+                                                                              seller_name,
+                                                                              quantity, price, "£", total))
+        print("\n\t{0:52}\t{1:45}\t{2:1} {3:1.2f}\n".format("", "Basket Total", "£", total_basket))
 
+    return all_rows
+
+
+def option_4(shopper, basketid):
+    if check_basket_contents(basketid) is True:
+        print("Your basket is empty")
+        return
+    else:
+        all_rows = option_3(shopper, basketid)
+        selected_option = 0
+        while selected_option > len(all_rows) or selected_option == 0:
+            prompt = "Enter the basket item no. of the item you want to change: "
+            selected_option = int(input(prompt))
+            if selected_option > len(all_rows) or selected_option == 0:
+                print("The Basket item no. you have entered is not in you basket")
+        item = all_rows[selected_option - 1]
+        product = item[5]
+        new_quantity = 0
+        while new_quantity <= 0:
+            prompt = "Enter the new quantity of the selected product you want to buy: "
+            new_quantity = int(input(prompt))
+            if new_quantity <= 0:
+                print("The quantity must be greater than zero")
+        update_basket = "UPDATE basket_contents\
+                         SET quantity = ? \
+                         WHERE basket_id = ? AND product_id = ?"
+        cursor.execute(update_basket, (new_quantity, basketid, product,))
+        db.commit()
+        option_3(shopper, basketid)
+    return
+
+
+def option_5(shopper, basketid):
+    if check_basket_contents(basketid) is True:
+        print("Your basket is empty")
+        return
+    else:
+        all_rows = option_3(shopper, basketid)
+        selected_option = 0
+        while selected_option > len(all_rows) or selected_option == 0:
+            prompt = "Enter the basket item no. of the item you want to remove: "
+            selected_option = int(input(prompt))
+            if selected_option > len(all_rows) or selected_option == 0:
+                print("The Basket item no. you have entered is not in you basket")
+        item = all_rows[selected_option - 1]
+        product = item[5]
+        confirm = input("Do you definitely want to delete this product from your basket (Y/N)? ")
+        if confirm.upper() == "N":
+            return
+        elif confirm.upper() == "Y":
+            delete_item = "DELETE FROM basket_contents WHERE basket_id = ? AND product_id = ?"
+            cursor.execute(delete_item, (basketid, product,))
+            if check_basket_contents(basketid) is True:
+                delete_basket = "DELETE FROM shopper_baskets WHERE basket_id = ?"
+                cursor.execute(delete_basket, (basketid,))
+            db.commit()
+            option_3(shopper, basketid)
     return
 
 
@@ -145,15 +230,15 @@ def display_options(all_options, title, type):
     option_list = []
     print("\n", title, "\n")
     for option in all_options:
-            code = option[0]
-            desc = option[1]
-            print("{0}.\t{1}".format(option_num, desc))
-            option_num = option_num + 1
-            option_list.append(code)
+        code = option[0]
+        desc = option[1]
+        print("{0}.\t{1}".format(option_num, desc))
+        option_num = option_num + 1
+        option_list.append(code)
     selected_option = 0
     while selected_option > len(option_list) or selected_option == 0:
-            prompt = "Enter the number against the " + type + " you want to choose: "
-            selected_option = int(input(prompt))
+        prompt = "Enter the number against the " + type + " you want to choose: "
+        selected_option = int(input(prompt))
     return option_list[selected_option - 1]
 
 
@@ -176,8 +261,13 @@ def run():
                 option_1(shopper)
             elif option == 2:
                 option_2(shopper, basketid)
+                basketid = check_basket(shopper)
             elif option == 3:
                 option_3(shopper, basketid)
+            elif option == 4:
+                option_4(shopper, basketid)
+            elif option == 5:
+                option_5(shopper, basketid)
             elif option == 7:
                 db.close()
                 break
