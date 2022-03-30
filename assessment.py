@@ -137,8 +137,8 @@ def option_3(shopper, basketid):
     if check_basket_contents(basketid) is True:
         print("Your basket is empty")
     else:
-        display_basket_query = "SELECT product_description, seller_name, quantity, PRINTF('£ %.2f',price),\
-                                  PRINTF('%.2f',(quantity*price)), p.product_id\
+        display_basket_query = "SELECT product_description, seller_name, quantity, price,\
+                                  (quantity*price), p.product_id\
                                       FROM basket_contents bc\
                                            INNER JOIN shopper_baskets sb ON sb.basket_id = bc.basket_id\
                                            INNER JOIN products p ON bc.product_id = p.product_id\
@@ -148,7 +148,7 @@ def option_3(shopper, basketid):
         all_rows = cursor.fetchall()
         print("\nBasket Contents\n"
               "----------------\n")
-        print("{0:7}\t{1:45}\t{2:26}\t{3:5}\t{4:10}\t{5:2}".format("Basket Item", "Product Description", "Seller Name",
+        print("{0:7}\t{1:70}\t{2:26}\t {3:5}\t{4:10}\t{5:2}".format("Basket Item", "Product Description", "Seller Name",
                                                                    "Qty", "Price", "Total"))
         basket_item = 0
         total_basket = 0.00
@@ -157,13 +157,12 @@ def option_3(shopper, basketid):
             product_description = row[0]
             seller_name = row[1]
             quantity = row[2]
-            price = row[3]
-            total = row[4]
+            price = float(row[3])
+            total = float(row[4])
             total_basket += float(total)
-            print("{0:11}\t{1:45}\t{2:24}\t{3:4}\t{4:10}\t{5:1} {6:1}".format(basket_item, product_description,
-                                                                              seller_name,
-                                                                              quantity, price, "£", total))
-        print("\n\t{0:52}\t{1:45}\t{2:1} {3:1.2f}\n".format("", "Basket Total", "£", total_basket))
+            print("{0:11}\t{1:70}\t{2:24}\t{3:4}\t£ {4:5.2f}\t£ {5:1.2f}".format(basket_item, product_description,
+                                                                                 seller_name, quantity, price, total))
+        print("\n\t{0:78}\t{1:45}\t£ {2:1.2f}\n".format("", "Basket Total", total_basket))
 
     return all_rows
 
@@ -225,6 +224,41 @@ def option_5(shopper, basketid):
     return
 
 
+def option_6(shopper, basketid):
+    if check_basket_contents(basketid) is True:
+        print("Your basket is empty")
+        return
+    else:
+        basket = option_3(shopper, basketid)
+        confirm = input("Do you wish to proceed with the checkout (Y/N)? ")
+        if confirm.upper() == "N":
+            return
+        elif confirm.upper() == "Y":
+            next_order_id_query = "SELECT seq\
+                                   FROM sqlite_sequence\
+                                   WHERE name = 'shopper_orders'"
+            cursor.execute(next_order_id_query)
+            order_id = cursor.fetchone()[0] + 1
+            create_order = "INSERT INTO shopper_orders\
+                            VALUES (?,?,date('now'),'Placed')"
+            cursor.execute(create_order, (order_id, shopper,))
+            for item in basket:
+                product_id = item[5]
+                seller_id = item[1]
+                quantity = item[2]
+                price = item[3]
+                ordered_products_query = "INSERT INTO ordered_products\
+                                          VALUES ( ?, ?, ?, ?, ?, 'Placed')"
+                delete_item = "DELETE FROM basket_contents WHERE basket_id = ? AND product_id = ?"
+                cursor.execute(ordered_products_query, (order_id, product_id, seller_id, quantity, price,))
+                cursor.execute(delete_item, (basketid, product_id,))
+            delete_basket = "DELETE FROM shopper_baskets WHERE basket_id = ?"
+            cursor.execute(delete_basket, (basketid,))
+            db.commit()
+            print("Checkout complete, your order has been placed")
+    return
+
+
 def display_options(all_options, title, type):
     option_num = 1
     option_list = []
@@ -249,7 +283,6 @@ def run():
                  WHERE shopper_id = ?"
     cursor.execute(sql_query, (shopper,))
     shop_row = cursor.fetchone()
-    basketid = None
     if shopper == shop_row[0]:
         first_name = shop_row[2]
         last_name = shop_row[3]
@@ -268,6 +301,8 @@ def run():
                 option_4(shopper, basketid)
             elif option == 5:
                 option_5(shopper, basketid)
+            elif option == 6:
+                option_6(shopper, basketid)
             elif option == 7:
                 db.close()
                 break
