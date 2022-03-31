@@ -17,7 +17,7 @@ def menu():
           "\n5.   Remove an item from your basket"
           "\n6.   Checkout"
           "\n7.   Exit\n")
-    option = int(input("Please choose an option:"))
+    option = int(input("Please choose an option: "))
     return option
 
 
@@ -59,15 +59,15 @@ def check_basket_contents(basketid):
 # Display the data
 # Return to main menu
 def option_1(shopper):
-    order_history = f"SELECT so.order_id, order_date,product_description, seller_name,\
+    order_history = "SELECT so.order_id, order_date,product_description, seller_name,\
                              price, quantity, ordered_product_status\
-                FROM shoppers s\
-                    INNER JOIN shopper_orders so ON so.shopper_id = s.shopper_id\
-                    INNER JOIN ordered_products op ON op.order_id = so.order_id\
-                    INNER JOIN products p ON op.product_id = p.product_id\
-                    INNER JOIN sellers ON op.seller_id = sellers.seller_id\
-                WHERE s.shopper_id = ?\
-                ORDER BY order_date DESC"
+                     FROM shoppers s\
+                     INNER JOIN shopper_orders so ON so.shopper_id = s.shopper_id\
+                     INNER JOIN ordered_products op ON op.order_id = so.order_id\
+                     INNER JOIN products p ON op.product_id = p.product_id\
+                     INNER JOIN sellers ON op.seller_id = sellers.seller_id\
+                     WHERE s.shopper_id = ?\
+                     ORDER BY order_date DESC"
     cursor.execute(order_history, (shopper,))
     all_rows = cursor.fetchall()
 
@@ -176,7 +176,7 @@ def option_3(shopper, basketid):
         print("Your basket is empty")
     else:
         display_basket_query = "SELECT product_description, seller_name, quantity, price,\
-                                  (quantity*price), p.product_id\
+                                  (quantity*price), p.product_id, s.seller_id\
                                       FROM basket_contents bc\
                                            INNER JOIN shopper_baskets sb ON sb.basket_id = bc.basket_id\
                                            INNER JOIN products p ON bc.product_id = p.product_id\
@@ -320,7 +320,7 @@ def option_6(shopper, basketid):
                 cursor.execute(create_order, (order_id, shopper,))
                 for item in basket:
                     product_id = item[5]
-                    seller_id = item[1]
+                    seller_id = item[6]
                     quantity = item[2]
                     price = item[3]
                     ordered_products_query = "INSERT INTO ordered_products\
@@ -338,7 +338,7 @@ def option_6(shopper, basketid):
 
 
 # Function display_options
-def display_options(all_options, title, type):
+def display_options(all_options, title, text):
     option_num = 1
     option_list = []
     print("\n", title, "\n")
@@ -350,8 +350,15 @@ def display_options(all_options, title, type):
         option_list.append(code)
     selected_option = 0
     while selected_option > len(option_list) or selected_option == 0:
-        prompt = "Enter the number against the " + type + " you want to choose: "
-        selected_option = int(input(prompt))
+        prompt = "Enter the number against the " + text + " you want to choose: "
+        try:
+            selected_option = int(input(prompt))
+        except ValueError:
+            print("****ERROR****\nPlease enter a valid input\n")
+            selected_option = int(input(prompt))
+        except TypeError:
+            print("****ERROR****\nPlease enter a valid input")
+            selected_option = int(input(prompt))
     return option_list[selected_option - 1]
 
 
@@ -359,45 +366,50 @@ def display_options(all_options, title, type):
 # If the shopper_id entered is found, prints a welcome message including the name of the shopper.
 # If the shopper_id is not found in the database, prints an error message and exits the program
 # otherwise calls the Function menu()
-
 def run():
-    shopper = int(input("Please enter your shopper ID: "))
-    sql_query = "SELECT *\
-                 FROM shoppers \
-                 WHERE shopper_id = ?"
-    cursor.execute(sql_query, (shopper,))
-    shop_row = cursor.fetchone()
-    if shopper == shop_row[0]:
-        first_name = shop_row[2]
-        last_name = shop_row[3]
-        print(f"Welcome {first_name} {last_name}!")
-        basketid = check_basket(shopper)
-
-# While loop that is calling the function menu()
-# for every option of the menu calls the respective function.
-        while True:
-            option = menu()
-            if option == 1:
-                option_1(shopper)
-            elif option == 2:
-                option_2(shopper, basketid)
-                basketid = check_basket(shopper)
-            elif option == 3:
-                option_3(shopper, basketid)
-            elif option == 4:
-                option_4(shopper, basketid)
-            elif option == 5:
-                option_5(shopper, basketid)
-            elif option == 6:
-                option_6(shopper, basketid)
-
-            # Option 7 - Exits the program
-            elif option == 7:
-                db.close()
-                break
-    else:
-        print("No shopper was found")
-    db.close()
+    try:
+        shopper = int(input("Please enter your shopper ID: "))
+        sql_query = "SELECT *\
+                     FROM shoppers \
+                     WHERE shopper_id = ?"
+        cursor.execute(sql_query, (shopper,))
+        shop_row = cursor.fetchone()
+        if shopper == shop_row[0]:
+            first_name = shop_row[2]
+            last_name = shop_row[3]
+            print(f"Welcome {first_name} {last_name}!")
+            basketid = check_basket(shopper)
+        # While loop that is calling the function menu()
+        # for every option of the menu calls the respective function.
+            while True:
+                option = menu()
+                if option == 1:
+                    option_1(shopper)
+                elif option == 2:
+                    option_2(shopper, basketid)
+                    basketid = check_basket(shopper)
+                elif option == 3:
+                    option_3(shopper, basketid)
+                elif option == 4:
+                    option_4(shopper, basketid)
+                elif option == 5:
+                    option_5(shopper, basketid)
+                elif option == 6:
+                    option_6(shopper, basketid)
+                    basketid = check_basket(shopper)
+                # Option 7 - Exits the program
+                elif option == 7:
+                    db.close()
+                    break
+        else:
+            print("No shopper was found")
+        db.close()
+    except ValueError:
+        print("Error!!!\nPlease enter a valid shopper ID\n")
+        run()
+    except TypeError:
+        print("Error!!!\nPlease enter a valid shopper ID\n")
+        run()
 
 
 if __name__ == "__main__":
