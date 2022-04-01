@@ -17,7 +17,12 @@ def menu():
           "\n5.   Remove an item from your basket"
           "\n6.   Checkout"
           "\n7.   Exit\n")
-    option = int(input("Please choose an option: "))
+    try:
+        option = int(input("Please choose an option: "))
+    except ValueError:
+        option = int(input("Error!!! Please enter a valid option: "))
+    except TypeError:
+        option = int(input("Error!!! Please enter a valid option: "))
     return option
 
 
@@ -354,7 +359,7 @@ def display_options(all_options, title, text):
         try:
             selected_option = int(input(prompt))
         except ValueError:
-            print("****ERROR****\nPlease enter a valid input\n")
+            print("****ERROR****\nPlease enter a valid input")
             selected_option = int(input(prompt))
         except TypeError:
             print("****ERROR****\nPlease enter a valid input")
@@ -367,20 +372,30 @@ def display_options(all_options, title, text):
 # If the shopper_id is not found in the database, prints an error message and exits the program
 # otherwise calls the Function menu()
 def run():
+
+    global shopper
     try:
         shopper = int(input("Please enter your shopper ID: "))
-        sql_query = "SELECT *\
-                     FROM shoppers \
-                     WHERE shopper_id = ?"
+    except ValueError:
+        print("Error!!!\nPlease enter a valid shopper ID")
+        run()
+
+    sql_query = "SELECT *\
+                 FROM shoppers \
+                 WHERE shopper_id = ?"
+    try:
         cursor.execute(sql_query, (shopper,))
-        shop_row = cursor.fetchone()
+    except db.DatabaseError:
+        run()
+    shop_row = cursor.fetchone()
+    try:
         if shopper == shop_row[0]:
             first_name = shop_row[2]
             last_name = shop_row[3]
             print(f"Welcome {first_name} {last_name}!")
             basketid = check_basket(shopper)
-        # While loop that is calling the function menu()
-        # for every option of the menu calls the respective function.
+            # While loop that is calling the function menu()
+            # for every option of the menu calls the respective function.
             while True:
                 option = menu()
                 if option == 1:
@@ -403,13 +418,10 @@ def run():
                     break
         else:
             print("No shopper was found")
-        db.close()
-    except ValueError:
-        print("Error!!!\nPlease enter a valid shopper ID\n")
-        run()
     except TypeError:
-        print("Error!!!\nPlease enter a valid shopper ID\n")
+        print("Error!!!\nPlease enter a valid shopper ID")
         run()
+    db.close()
 
 
 if __name__ == "__main__":
