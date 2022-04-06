@@ -191,7 +191,7 @@ def option_3(shopper, basketid):
         all_rows = cursor.fetchall()
         print("\nBasket Contents\n"
               "----------------\n")
-        print("{0:7}\t{1:70}\t{2:26}\t {3:5}\t{4:10}\t{5:2}".format("Basket Item", "Product Description", "Seller Name",
+        print("{0:7}\t{1:70}\t{2:26}\t {3:5}\t{4:10}\t{5:5}".format("Basket Item", "Product Description", "Seller Name",
                                                                     "Qty", "Price", "Total"))
         basket_item = 0
         total_basket = 0.00
@@ -203,8 +203,8 @@ def option_3(shopper, basketid):
             price = row[3]
             total = row[4]
             total_basket += total
-            print("{0:11}\t{1:70}\t{2:24}\t{3:4}\t£ {4:5.2f}\t\t£ {5:1.2f}".format(basket_item, product_description,
-                                                                                   seller_name, quantity, price, total))
+            print("{0:11}\t{1:70}\t{2:24}\t{3:4}\t£ {4:5.2f}\t£ {5:1.2f}".format(basket_item, product_description,
+                                                                                 seller_name, quantity, price, total))
         print("\n\t{0:78}\t{1:45}\t£ {2:1.2f}\n".format("", "Basket Total", total_basket))
 
     return all_rows
