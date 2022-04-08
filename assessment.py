@@ -263,12 +263,14 @@ def option_4(shopper, basketid):
 # and display ‘Your basket is empty’ otherwise display the current basket with a re-calculated total.
 # Return to the main menu
 def option_5(shopper, basketid):
+    all_rows = option_3(shopper, basketid)
+    selected_option = 0
+    product = 0
     if check_basket_contents(basketid) is True:
         print("Your basket is empty")
         return
-    else:
-        all_rows = option_3(shopper, basketid)
-        selected_option = 0
+
+    elif len(all_rows) > 1:
         while selected_option > len(all_rows) or selected_option == 0:
             prompt = "Enter the basket item no. of the item you want to remove: "
             selected_option = int(input(prompt))
@@ -276,22 +278,26 @@ def option_5(shopper, basketid):
                 print("The Basket item no. you have entered is not in you basket")
         item = all_rows[selected_option - 1]
         product = item[5]
-        confirm = input("Do you definitely want to delete this product from your basket (Y/N)? ")
 
-        while True:
-            if confirm.upper() == "N":
-                return
-            elif confirm.upper() == "Y":
-                delete_item = "DELETE FROM basket_contents WHERE basket_id = ? AND product_id = ?"
-                cursor.execute(delete_item, (basketid, product,))
-                if check_basket_contents(basketid) is True:
-                    delete_basket = "DELETE FROM shopper_baskets WHERE basket_id = ?"
-                    cursor.execute(delete_basket, (basketid,))
-                db.commit()
-                option_3(shopper, basketid)
-                return
-            else:
-                confirm = input("Please enter a valid input (Y/N)? ")
+    elif len(all_rows) == 1:
+        confirm = input("Do you definitely want to delete this product from your basket (Y/N)? ")
+        product = all_rows[5]
+
+    confirm = input("Do you definitely want to delete this product from your basket (Y/N)? ")
+    while True:
+        if confirm.upper() == "N":
+            return
+        elif confirm.upper() == "Y":
+            delete_item = "DELETE FROM basket_contents WHERE basket_id = ? AND product_id = ?"
+            cursor.execute(delete_item, (basketid, product,))
+            if check_basket_contents(basketid) is True:
+                delete_basket = "DELETE FROM shopper_baskets WHERE basket_id = ?"
+                cursor.execute(delete_basket, (basketid,))
+            db.commit()
+            option_3(shopper, basketid)
+            return
+        else:
+            confirm = input("Please enter a valid input (Y/N)? ")
 
 
 # Option 6 – Checkout your basket
@@ -409,6 +415,7 @@ def run():
                     option_4(shopper, basketid)
                 elif option == 5:
                     option_5(shopper, basketid)
+                    basketid = check_basket(shopper)
                 elif option == 6:
                     option_6(shopper, basketid)
                     basketid = check_basket(shopper)
