@@ -6,7 +6,7 @@ db_file = "C:/Users/pinix/OneDrive/Ambiente de Trabalho/Solent/Year 1/2 Semester
           "COM417 - Databases/Assessment/Assessment.db"
 db = sqlite3.connect(db_file)
 cursor = db.cursor()
-shopper = 10000
+shopper = 10010
 display_basket_query = "SELECT product_description, seller_name, quantity, price,\
                                   (quantity*price), p.product_id\
                                       FROM basket_contents bc\
@@ -30,7 +30,7 @@ for row in all_rows:
     price = float(row[3])
     total = float(row[4])
     total_basket += float(total)
-    print("{0:11}\t{1:70}\t{2:24}\t{3:4}\t£ {4:5.2f}\t£ {5:1.2f}".format(basket_item, product_description,
+    print("{0:11}\t{1:70}\t{2:24}\t{3:4}\t£{4:8.2f}\t£ {5:1.2f}".format(basket_item, product_description,
                                                                           seller_name,
                                                                            quantity, price, total))
 print("\n\t{0:78}\t{1:45}\t£ {2:1.2f}\n".format("", "Basket Total", total_basket))
